@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo",
     "start": "node index.js",
-    "server": "nodemon index.js"
+    "dev": "nodemon index.js"
   },
   "author": "trangdp",
   "license": "MIT",
