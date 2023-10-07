@@ -38,10 +38,15 @@ var userSchema = new mongoose.Schema({
     default: [],
   },
   address: [{ type: mongoose.Schema.Types.ObjectId, ref: "Address" }],
-  wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }]
-}, {
-  timestamps: true
-})
+  wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
+  refreshToken: {
+    type: String,
+  }
+
+},
+  {
+    timestamps: true
+  })
 
 userSchema.pre("save", async function(next) {
   const salt = await bcrypt.genSaltSync(10)
