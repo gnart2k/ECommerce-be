@@ -2,7 +2,8 @@ const { generateToken } = require("../config/jwtToken");
 const User = require("../models/userModel");
 const asyncHandler = require("express-async-handler")
 const { generateRefreshToken } = require("../config/refreshtoken")
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+const validateMongoDbId = require("../utils/validateMongodbId");
 
 const createUser = asyncHandler(async (req, res) => {
 
@@ -120,6 +121,21 @@ const updateUser = asyncHandler(async (req, res) => {
   }
 })
 
+const updatePassword = asyncHandler(async (req, res) => {
+  console.log(req)
+  const { _id } = req.user;
+  const { password } = req.body;
+  validateMongoDbId(_id)
+  const user = await User.findById(_id)
+  if (password) {
+    user.password = password
+    const updatePassword = await user.save()
+    res.json(updatePassword)
+  } else {
+    res.json(user)
+  }
+})
+
 const logout = asyncHandler(async (req, res) => {
   const cookie = req.cookies;
   if (!cookie?.refreshToken) throw new Error("No Refresh Token in Cookies");
@@ -151,6 +167,7 @@ module.exports = {
   deleteUser,
   updateUser,
   handleRefreshToken,
-  logout
+  logout,
+  updatePassword
 }
 
