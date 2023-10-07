@@ -41,17 +41,20 @@ var userSchema = new mongoose.Schema({
   wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
   refreshToken: {
     type: String,
-  }
-
+  },
+  passwordChangeAt: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
 },
   {
     timestamps: true
   })
 
 userSchema.pre("save", async function(next) {
+
   const salt = await bcrypt.genSaltSync(10)
   this.password = await bcrypt.hash(this.password, salt)
-
+  next()
 })
 
 userSchema.methods.isPasswordMatched = async function(enteredPassword) {
