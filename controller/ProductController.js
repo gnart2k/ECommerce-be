@@ -1,7 +1,12 @@
-const Product = require('../models/ProductModel')
-const asyncHandler = require('express-async-handler')
-const slugify = require("slugify")
-const validateMongoDbId = require("../utils/validateMongodbId")
+const Product = require("../models/ProductModel");
+const asyncHandler = require("express-async-handler");
+const slugify = require("slugify");
+const validateMongoDbId = require("../utils/validateMongodbId");
+const fs = require("fs");
+const {
+  cloudinaryDeleteImg,
+  cloudinaryUploadImg,
+} = require("../utils/cloudinary");
 
 const createProduct = asyncHandler(async (req, res) => {
   try {
@@ -16,12 +21,15 @@ const createProduct = asyncHandler(async (req, res) => {
 });
 
 const getProduct = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  validateMongoDbId(id);
   try {
-    res.json("product route")
-  } catch (err) {
-    throw new Error(err)
+    const findProduct = await Product.findById(id);
+    res.json(findProduct);
+  } catch (error) {
+    throw new Error(error);
   }
-})
+});
 
 const updateProduct = asyncHandler(async (req, res) => {
   const id = req.params;
@@ -52,14 +60,14 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
 const getAllProduct = asyncHandler(async (req, res) => {
   try {
-    const queryObj = { ...req.query }
-    const excludeFields = ["page", "sort", "limit", "fields"]
-    excludeFields.forEach(e => delete queryObj[e])
-    let queryStr = JSON.stringify(queryObj)
+    const queryObj = { ...req.query };
+    const excludeFields = ["page", "sort", "limit", "fields"];
+    excludeFields.forEach((e) => delete queryObj[e]);
+    let queryStr = JSON.stringify(queryObj);
 
     queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
 
-    let query = Product.find(JSON.parse(queryStr))
+    let query = Product.find(JSON.parse(queryStr));
     //sort
     if (req.query.sort) {
       const sortBy = req.query.sort.split(",").join(" ");
@@ -89,15 +97,105 @@ const getAllProduct = asyncHandler(async (req, res) => {
     }
 
     const product = await query;
-    res.json(product)
+    res.json(product);
   } catch (err) {
-    throw new Error(err)
+    throw new Error(err);
   }
-})
+});
+
+const rating = asyncHandler(async (req, res) => {
+  const { _id } = req.user;
+  const { star, prodId, comment } = req.body;
+  try {
+    const product = await Product.findById(prodId);
+    let alreadyRated = product.ratings.find(
+      (userId) => userId.postedby.toString() === _id.toString(),
+    );
+    if (alreadyRated) {
+      const updateRating = await Product.updateOne(
+        {
+          ratings: { $elemMatch: alreadyRated },
+        },
+        {
+          $set: { "ratings.$.star": star, "ratings.$.comment": comment },
+        },
+        {
+          new: true,
+        },
+      );
+    } else {
+      const rateProduct = await Product.findByIdAndUpdate(
+        prodId,
+        {
+          $push: {
+            ratings: {
+              star: star,
+              comment: comment,
+              postedby: _id,
+            },
+          },
+        },
+        {
+          new: true,
+        },
+      );
+    }
+    const getallratings = await Product.findById(prodId);
+    let totalRating = getallratings.ratings.length;
+    let ratingsum = getallratings.ratings
+      .map((item) => item.star)
+      .reduce((prev, curr) => prev + curr, 0);
+    let actualRating = Math.round(ratingsum / totalRating);
+    let finalproduct = await Product.findByIdAndUpdate(
+      prodId,
+      {
+        totalrating: actualRating,
+      },
+      { new: true },
+    );
+    res.json(finalproduct);
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
+const uploadImages = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  validateMongoDbId(id);
+  try {
+    const uploader = (path) => cloudinaryUploadImg(path, "images");
+    const urls = [];
+    const files = req.files;
+    for (const file of files) {
+      const { path } = file;
+      const newpath = await uploader(path);
+      console.log(newpath);
+      urls.push(newpath);
+      fs.unlinkSync(path);
+    }
+    const findProduct = await Product.findByIdAndUpdate(
+      id,
+      {
+        images: urls.map((file) => {
+          return file;
+        }),
+      },
+      {
+        new: true,
+      },
+    );
+    res.json(findProduct);
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
 module.exports = {
   createProduct,
   getProduct,
   getAllProduct,
   updateProduct,
-  deleteProduct
-}
+  deleteProduct,
+  rating,
+  uploadImages,
+};

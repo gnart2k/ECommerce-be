@@ -1,55 +1,56 @@
 const { generateToken } = require("../config/jwtToken");
 const User = require("../models/userModel");
-const asyncHandler = require("express-async-handler")
-const { generateRefreshToken } = require("../config/refreshtoken")
+const asyncHandler = require("express-async-handler");
+const { generateRefreshToken } = require("../config/refreshtoken");
 const jwt = require("jsonwebtoken");
 const validateMongoDbId = require("../utils/validateMongodbId");
 
 const createUser = asyncHandler(async (req, res) => {
-
-  const email = req.body.email
-  const findUser = await User.findOne({ email: email })
+  const email = req.body.email;
+  const findUser = await User.findOne({ email: email });
   if (!findUser) {
-    //create new user 
-    const newUser = await User.create(req.body)
-    res.json(newUser)
+    //create new user
+    const newUser = await User.create(req.body);
+    res.json(newUser);
   } else {
     throw new Error("User Already Exists");
   }
-})
+});
 
 const loginUserCtrl = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  const findUser = await User.findOne({ email })
+  const findUser = await User.findOne({ email });
   if (!findUser) {
     throw new Error("User does not exist");
   }
-
-  if (await findUser.isPasswordMatched(password)) {
-    const refreshToken = await generateRefreshToken(findUser?.id)
+  const loginUser = await findUser.isPasswordMatched(password);
+  if (!loginUser) {
+    throw new Error("Invalid password");
+  } else {
+    const refreshToken = await generateRefreshToken(findUser?.id);
     const updateUser = await User.findByIdAndUpdate(
       findUser.id,
       {
-        refreshToken: refreshToken
+        refreshToken: refreshToken,
       },
-      { new: true }
-    )
+      { new: true },
+    );
 
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      maxAge: 72 * 60 * 60 * 1000
-    })
+      maxAge: 72 * 60 * 60 * 1000,
+    });
     res.json({
       _id: findUser?._id,
       firstname: findUser?.firstname,
       lastname: findUser?.lastname,
       email: findUser?.email,
       mobile: findUser?.mobile,
-      token: generateToken(findUser?._id)
-    })
+      token: generateToken(findUser?._id),
+    });
   }
-})
+});
 const handleRefreshToken = asyncHandler(async (req, res) => {
   const cookie = req.cookies;
   if (!cookie?.refreshToken) throw new Error("No Refresh Token in Cookies");
@@ -67,37 +68,37 @@ const handleRefreshToken = asyncHandler(async (req, res) => {
 
 const getAllUser = asyncHandler(async (req, res) => {
   try {
-    const users = await User.find()
-    res.json(users)
+    const users = await User.find();
+    res.json(users);
   } catch (err) {
-    throw new Error(err)
+    throw new Error(err);
   }
-})
+});
 
 const getUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
     const findUser = await User.findById(id);
     res.json({
-      findUser
-    })
+      findUser,
+    });
   } catch (err) {
-    throw new Error(err)
+    throw new Error(err);
   }
-})
-module.exports = { createUser, loginUserCtrl, getAllUser, getUser }
+});
+module.exports = { createUser, loginUserCtrl, getAllUser, getUser };
 
 const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
     const findUser = await User.findByIdAndDelete(id);
     res.json({
-      findUser
-    })
+      findUser,
+    });
   } catch (err) {
-    throw new Error(err)
+    throw new Error(err);
   }
-})
+});
 
 const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -113,28 +114,28 @@ const updateUser = asyncHandler(async (req, res) => {
       },
       {
         new: true,
-      }
-    )
-    res.json(updateUser)
+      },
+    );
+    res.json(updateUser);
   } catch (err) {
-    throw new Error(err)
+    throw new Error(err);
   }
-})
+});
 
 const updatePassword = asyncHandler(async (req, res) => {
-  console.log(req)
+  console.log(req);
   const { _id } = req.user;
   const { password } = req.body;
-  validateMongoDbId(_id)
-  const user = await User.findById(_id)
+  validateMongoDbId(_id);
+  const user = await User.findById(_id);
   if (password) {
-    user.password = password
-    const updatePassword = await user.save()
-    res.json(updatePassword)
+    user.password = password;
+    const updatePassword = await user.save();
+    res.json(updatePassword);
   } else {
-    res.json(user)
+    res.json(user);
   }
-})
+});
 
 const logout = asyncHandler(async (req, res) => {
   const cookie = req.cookies;
@@ -148,16 +149,18 @@ const logout = asyncHandler(async (req, res) => {
     });
     return res.sendStatus(204); // forbidden
   }
-  await User.findOneAndUpdate({ refreshToken }, {
-    refreshToken: "",
-  });
+  await User.findOneAndUpdate(
+    { refreshToken },
+    {
+      refreshToken: "",
+    },
+  );
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: true,
   });
   res.sendStatus(204); // forbidden
 });
-
 
 module.exports = {
   createUser,
@@ -168,6 +171,5 @@ module.exports = {
   updateUser,
   handleRefreshToken,
   logout,
-  updatePassword
-}
-
+  updatePassword,
+};
