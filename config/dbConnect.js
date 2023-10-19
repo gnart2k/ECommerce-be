@@ -1,13 +1,12 @@
-const { default: mongoose } = require('mongoose')
+const { default: mongoose } = require("mongoose");
 
 const dbConnect = () => {
   try {
-    const conn = mongoose.connect(
-      process.env.DB_URL
-    )
+    mongoose.set("strictQuery", false);
+    const conn = mongoose.connect(process.env.DB_URL);
   } catch (error) {
-    throw new Error(error)
+    throw new Error(error);
   }
-}
+};
 
-module.exports = dbConnect
+module.exports = dbConnect;
